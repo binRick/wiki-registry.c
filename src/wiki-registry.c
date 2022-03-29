@@ -1,11 +1,3 @@
-
-//
-// wiki-registry.c
-//
-// Copyright (c) 2014 Stephen Mathieson
-// MIT licensed
-//
-
 #include <curl/curl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -20,14 +12,35 @@
 #include "case/case.h"
 #include "trim/trim.h"
 #include "wiki-registry.h"
-
-//
-// TODO find dox on gumbo so the node iteration isn't so ugly
-//
+#include "../../string/strsplit.c"
+#include "../../string/splitqty.c"
+#include "../../log/log.c"
+#include "../../string/str-copy.c"
+#include "../../string/str-replace.c"
+#include "../../parson/parson.h"
+#include "../../parson/parson.c"
+#include "./structs.c"
+#include "../../string/stringbuffer.c"
+#include "../../fs/fs.c"
+#include "../../fs/fsio.c"
+#include "../../fs/time.c"
 
 /**
  * Create a new wiki package.
  */
+
+
+static char *wiki_package_to_str(wiki_package_t *self){
+  JSON_Value  *root_value  = json_value_init_object();
+  JSON_Object *root_object = json_value_get_object(root_value);
+
+  json_object_set_string(root_object, "repo", self->repo);
+  char *ret = strdup(json_serialize_to_string_pretty(root_value));
+
+  json_value_free(root_value);
+  return(ret);
+}
+
 
 static wiki_package_t *
 wiki_package_new() {
@@ -36,7 +49,10 @@ wiki_package_new() {
     pkg->repo = NULL;
     pkg->href = NULL;
     pkg->description = NULL;
+    pkg->author = NULL;
+    pkg->project = NULL;
     pkg->category = NULL;
+    pkg->urls = malloc(sizeof(urls));
   }
   return pkg;
 }
@@ -45,8 +61,7 @@ wiki_package_new() {
  * Add `href` to the given `package`.
  */
 
-static void
-add_package_href(wiki_package_t *self) {
+static void add_package_href(wiki_package_t *self) {
   size_t len = strlen(self->repo) + 20; // https://github.com/ \0
   self->href = malloc(len);
   if (self->href)
@@ -57,8 +72,7 @@ add_package_href(wiki_package_t *self) {
  * Parse the given wiki `li` into a package.
  */
 
-static wiki_package_t *
-parse_li(GumboNode *li) {
+static wiki_package_t * parse_li(GumboNode *li) {
   wiki_package_t *self = wiki_package_new();
   char *text = NULL;
 
@@ -77,6 +91,30 @@ parse_li(GumboNode *li) {
   if (!self->repo || !self->description) goto cleanup;
   trim(self->description);
   trim(self->repo);
+
+  self->urls->c_stars = strdup("UNKNOWN");
+  self->urls->c_repos = strdup("UNKNOWN");
+  self->author = strdup("UNKNOWN");
+  self->project = strdup("UNKNOWN");
+
+  if(splitqty(self->repo, "/") == 2){
+    char buf[1024];
+    char **split = strsplit(self->repo, "/");
+    self->author = strdup(split[0]);
+    self->project = strdup(split[1]);
+    sprintf(&buf, C_STARS_TPL, self->author);
+    self->urls->c_stars = strdup(trim(buf));
+    sprintf(&buf, C_REPOS_TPL, self->author);
+    self->urls->c_repos = strdup(trim(buf));
+  }
+
+  trim(self->project);
+  trim(self->author);
+
+  log_info("author:%s", self->author);
+  log_info("repo:%s", self->repo);
+  log_info("c stars:%s", self->urls->c_stars);
+//  exit(1);
 
   add_package_href(self);
 
@@ -146,17 +184,51 @@ wiki_registry_parse(const char *html) {
   return pkgs;
 }
 
+bool CACHE_RESPONSE = true;
+bool CACHED_RESPONSE = true;
+
 /**
  * Get a list of packages from the given GitHub wiki `url`.
  */
 
-list_t *
-wiki_registry(const char *url) {
-  http_get_response_t *res = http_get(url);
-  if (!res->ok) return NULL;
+char *RESPONSE_CACHE_FILE_PATH = "./.response-cache.txt";
 
+list_t * wiki_registry(const char *url) {
+  log_info("getting url %s", url);
+  tq_start("");
+  http_get_response_t *res;
+  bool dofree= false;
+  fs_creation_time(RESPONSE_CACHE_FILE_PATH);
+exit(0);
+  if(fsio_file_exists(RESPONSE_CACHE_FILE_PATH) && (fsio_file_size(RESPONSE_CACHE_FILE_PATH) > 0) ){
+      res->data = fsio_read_text_file(RESPONSE_CACHE_FILE_PATH);
+      log_info("Read %db from cache file %s", strlen(res->data));
+  }else{
+      res = http_get(url);
+      if (!res->ok) return NULL;
+      dofree= true;
+      if(CACHE_RESPONSE){
+          if (!fsio_file_exists(RESPONSE_CACHE_FILE_PATH)) {
+            if (!fsio_create_empty_file(RESPONSE_CACHE_FILE_PATH)){
+              log_fatal("Failed to create cache file!");
+            }
+          }
+          if (!fsio_write_text_file(RESPONSE_CACHE_FILE_PATH, res->data)) {
+            log_fatal("Failed to write cache file!");
+          }
+      }
+  }
+  char *dur = tq_stop("");
+  log_info("got %s of data from url %s in %s", bytes_to_string(strlen(res->data)), url, dur);
+
+  tq_start("");
   list_t *list = wiki_registry_parse(res->data);
-  http_get_free(res);
+  dur = tq_stop("");
+  log_info("parsed in %s", dur);
+
+  if(dofree)
+      http_get_free(res);
+
   return list;
 }
 
@@ -169,6 +241,8 @@ wiki_package_free(wiki_package_t *pkg) {
   free(pkg->repo);
   free(pkg->href);
   free(pkg->description);
+  free(pkg->author);
+  free(pkg->project);
   free(pkg->category);
   free(pkg);
 }

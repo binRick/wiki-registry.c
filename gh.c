@@ -2,31 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "../carrays/carrays.c"
-#include "../cstructs-json/json/json.h"
+
 
 #include "wiki-registry.h"
 #define DEFAULT_URL "https://github.com/clibs/clib/wiki/Packages"
-#define LOCAL_PACKAGES_CACHE_FILE "./.cache-packages.txt"
 
 list_t *pkgs;
 
 void dev(){
     printf("dev.........\n");
-}
-void save_wiki(){
-  printf("saving wiki....\n");
-  pkgs = wiki_registry(DEFAULT_URL);
-  list_node_t *node;
-  list_iterator_t *it = list_iterator_new(pkgs, LIST_HEAD);
-  while ((node = list_iterator_next(it))) {
-    wiki_package_t *pkg = (wiki_package_t *) node->val;
-    printf("%s\n"
-        , pkg->repo
-         );
-    wiki_package_free(pkg);
-  }
-  list_iterator_destroy(it);
 }
 void restore_wiki(){
     printf("restoring wiki....\n");
@@ -67,9 +51,7 @@ int main(const int argc, char **argv) {
     fetch_wiki();
  else if(argc == 2 && (strcmp(argv[1],"dev") == 0))
      dev();
- else if(argc == 2 && (strcmp(argv[1],"save") == 0)){
-    save_wiki();
- }else
+ else
     restore_wiki();
 
 }
