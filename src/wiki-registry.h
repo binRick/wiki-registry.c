@@ -1,16 +1,37 @@
 #ifndef WIKI_REGISTRY_H
-#define WIKI_REGISTRY_H 1
-#define SKIP_LIST_C 1
-#define C_STARS_TPL "https://github.com/%s?language=c&tab=stars"
-#define C_REPOS_TPL "https://github.com/%s?tab=repositories&q=&type=&language=c&sort="
+#define WIKI_REGISTRY_H    1
+#define SKIP_LIST_C        1
+#define C_STARS_TPL        "https://github.com/%s?language=c&tab=stars"
+#define C_REPOS_TPL        "https://github.com/%s?tab=repositories&q=&type=&language=c&sort="
 
 #include "list/list.h"
 
+typedef struct parsed_star_result   parsed_star_result;
+typedef struct                      parsed_star_result {
+  char *name;
+  char *url;
+  char *html;
+  int  qty;
+};
+
+/*
+ * stp_print_begin(parsed_star_result, 4) {
+ *  stp_print_field_string(name);
+ *  stp_print_field_string(url);
+ *  stp_print_field_string(html);
+ *  stp_print_field_int(qty);
+ *  stp_print_end();
+ * }*/
+
+typedef struct parsed_stars_result {
+  list_t *list_items;
+};
+
 typedef struct urls {
-    char *c_stars;
-    char *c_repos;
-    int c_stars_qty;
-    int c_repos_qty;
+  char *c_stars;
+  char *c_repos;
+  int  c_stars_qty;
+  int  c_repos_qty;
 } urls;
 
 typedef struct {
@@ -26,8 +47,32 @@ typedef struct {
 list_t *
 wiki_registry(const char *);
 
+char *
+get_star_html(char *name, char *list_name);
+
+char *
+get_star_url(char *name);
+
 list_t *
 wiki_registry_parse(const char *);
+
+struct parsed_star_result *
+parse_star_html(char *, char *);
+
+struct parsed_stars_result *
+parse_stars_html(const char *);
+
+list_t *
+get_list_items();
+
+char *
+get_star_url(char *);
+
+void
+print_parsed_star_result(struct parsed_star_result *);
+
+char *
+get_stars_url(const char *);
 
 void
 wiki_package_free(wiki_package_t *);

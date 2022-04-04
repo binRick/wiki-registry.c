@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 
-#include "wiki-registry.h"
+#include "src/wiki-registry.h"
 #define DEFAULT_URL "https://github.com/clibs/clib/wiki/Packages"
 
 list_t *pkgs;
