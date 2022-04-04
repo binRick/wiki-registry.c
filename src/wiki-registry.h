@@ -3,12 +3,12 @@
 #define SKIP_LIST_C        1
 #define C_STARS_TPL        "https://github.com/%s?language=c&tab=stars"
 #define C_REPOS_TPL        "https://github.com/%s?tab=repositories&q=&type=&language=c&sort="
-#define C_REPO_TPL        "https://github.com/%s/%s"
+#define C_REPO_TPL         "https://github.com/%s/%s"
 
 #include "list/list.h"
 
-typedef struct repo_t repo_t;
-typedef struct repo_t {
+typedef struct repo_t   repo_t;
+typedef struct          repo_t {
   char *name;
   char *url;
   char *author;
@@ -16,14 +16,14 @@ typedef struct repo_t {
 
 typedef struct parsed_star_result   parsed_star_result;
 typedef struct                      parsed_star_result {
-  char *name;
-  char *url;
-  char *html;
+  char   *name;
+  char   *url;
+  char   *html;
   list_t *html_lines;
   list_t *repos;
-  int  qty;
-  char *repo;
-  char *author;
+  int    qty;
+  char   *repo;
+  char   *author;
 };
 
 

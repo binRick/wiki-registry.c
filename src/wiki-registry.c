@@ -2,13 +2,13 @@
 #define STAR_URL_TEMPLATE    "https://github.com/stars/binRick/lists/%s"
 /*************************************************/
 #include <curl/curl.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 /*************************************************/
-#include "gumbo-parser/gumbo.h"
-#include "gumbo-text-content/gumbo-text-content.h"
 #include "gumbo-get-element-by-id/get-element-by-id.h"
 #include "gumbo-get-elements-by-tag-name/get-elements-by-tag-name.h"
+#include "gumbo-parser/gumbo.h"
+#include "gumbo-text-content/gumbo-text-content.h"
 /*************************************************/
 #include "http-get/http-get.h"
 /*************************************************/
@@ -17,28 +17,28 @@
 #include "list/list.h"
 #include "substr/substr.h"
 /*************************************************/
-#include "strdup/strdup.h"
 #include "case/case.h"
+#include "strdup/strdup.h"
 #include "trim/trim.h"
 #include "wiki-registry.h"
 /*************************************************/
-#include "../../string/strsplit.c"
 #include "../../string/splitqty.c"
 #include "../../string/stringfn.c"
+#include "../../string/strsplit.c"
 /*************************************************/
 #include "../../log/log.c"
 #include "../../string/strconv.h"
 /*************************************************/
+#include "../../parson/parson.c"
+#include "../../parson/parson.h"
 #include "../../string/str-copy.c"
 #include "../../string/str-replace.c"
-#include "../../parson/parson.h"
-#include "../../parson/parson.c"
 #include "./structs.c"
 /*************************************************/
-#include "../../string/stringbuffer.c"
 #include "../../fs/fs.c"
 #include "../../fs/fsio.c"
 #include "../../fs/time.c"
+#include "../../string/stringbuffer.c"
 /*************************************************/
 #define CACHE_ENABLED        false
 #define DEFAULT_LOG_LEVEL    LOG_DEBUG
@@ -59,7 +59,7 @@ static char *wiki_package_to_str(wiki_package_t *self){
 }
 
 
-static wiki_package_t *wiki_package_new()                        {
+static wiki_package_t *wiki_package_new() {
   wiki_package_t *pkg = malloc(sizeof(wiki_package_t));
 
   if (pkg) {
@@ -94,12 +94,14 @@ static void add_package_href(wiki_package_t *self) {
  * Parse the given wiki `li` into a package.
  */
 
-char *
-get_repo_url(char *author, char *name){
-    char msg[1024];
-    sprintf(&msg,C_REPO_TPL,author,name);
-    return strdup(msg);
+
+char *get_repo_url(char *author, char *name)       {
+  char msg[1024];
+
+  sprintf(&msg, C_REPO_TPL, author, name);
+  return(strdup(msg));
 }
+
 
 static wiki_package_t * parse_li(GumboNode *li) {
   wiki_package_t *self = wiki_package_new();
@@ -162,7 +164,7 @@ cleanup:
 } /* parse_li */
 
 
-list_t *wiki_registry_parse(const char *html)         {
+list_t *wiki_registry_parse(const char *html) {
   log_set_level(DEFAULT_LOG_LEVEL);
   GumboOutput *output = gumbo_parse(html);
   list_t      *pkgs   = list_new();
@@ -208,14 +210,14 @@ list_t *wiki_registry_parse(const char *html)         {
           if (package) {
             wiki_package_free(package);
           }
+        }
+        list_iterator_destroy(li_iterator);
+        list_destroy(lis);
+        free(category);
       }
-      list_iterator_destroy(li_iterator);
-      list_destroy(lis);
-      free(category);
+      list_iterator_destroy(heading_iterator);
+      list_destroy(h2s);
     }
-    list_iterator_destroy(heading_iterator);
-    list_destroy(h2s);
-  }
   }
 
   gumbo_destroy_output(&kGumboDefaultOptions, output);
@@ -235,7 +237,7 @@ char * get_star_html(char *name, char *url) {
   char star_html_file[1024];
 
   sprintf(star_html_file, STAR_RESPONSE_TEMPLATE, name);
-  if(fsio_file_exists(star_html_file) && (fsio_file_size(star_html_file) > 0)) {
+  if (fsio_file_exists(star_html_file) && (fsio_file_size(star_html_file) > 0)) {
     log_debug("cached response!");
     return(fsio_read_text_file(star_html_file));
   }else{
@@ -288,7 +290,7 @@ void save_stars_html(const char *html, const char *path){
 }
 
 
-list_t *get_list_items()         {
+list_t *get_list_items() {
   list_t      *list_items = list_new();
   char        *LIST_NAME  = "x";
   list_node_t *list_item  = strdup(LIST_NAME);
@@ -298,77 +300,81 @@ list_t *get_list_items()         {
 }
 
 
-char *get_star_url(char *list_name)       {
+char *get_star_url(char *list_name) {
   char msg[1024];
-  int q = splitqty(list_name," ");
-  if(q>0){
-      char *_list_name = strdup(list_name);
-      char **s = strsplit(list_name," ");
-      list_name = strdup(s[0]);
+  int  q = splitqty(list_name, " ");
+
+  if (q > 0) {
+    char *_list_name = strdup(list_name);
+    char **s         = strsplit(list_name, " ");
+    list_name = strdup(s[0]);
   }
   sprintf(&msg, STAR_URL_TEMPLATE, list_name);
   return(strdup(&msg));
 }
 
 
-int
-ParseStarResult(parsed_star_result *StarResult){
-  char *html = strdup(StarResult->html);
-  int lines_qty = splitqty(html, "\n");
+int ParseStarResult(parsed_star_result *StarResult)     {
+  char *html     = strdup(StarResult->html);
+  int  lines_qty = splitqty(html, "\n");
+
   log_debug("acquired %d lines", lines_qty);
   assert(lines_qty > 0);
-  char **lines = strsplit(html, "\n");
+  char **lines     = strsplit(html, "\n");
   re_t repos_regex = re_compile(" / </span>\\s*");
-  for(int i=0;i<lines_qty;i++){
+
+  for (int i = 0; i < lines_qty; i++) {
     char *line = lines[i];
-    if(strlen(line)<1)continue;
+    if (strlen(line) < 1) {
+      continue;
+    }
     int match_length, repos_match_qty, repos_match_qty1;
     int match_repos = re_matchp(repos_regex, line, &repos_match_qty);
     if (match_repos != -1) {
-        log_trace("match- '%s' > %d|%i", line, match_repos, repos_match_qty);
-        char *es = str_replace(line, " ", "");
-        int sq1 = splitqty(es, ">");
-        int sq2 = splitqty(es, "<");
-        assert(sq1 > 1);
-        assert(sq2 > 1);
-        log_trace("repos match!|len:%i|qty:%i|>     " AC_RESETALL AC_YELLOW AC_REVERSED "%s" AC_RESETALL
-                ,match_repos
-                ,repos_match_qty
-                ,es
+      log_trace("match- '%s' > %d|%i", line, match_repos, repos_match_qty);
+      char *es = str_replace(line, " ", "");
+      int  sq1 = splitqty(es, ">");
+      int  sq2 = splitqty(es, "<");
+      assert(sq1 > 1);
+      assert(sq2 > 1);
+      log_trace("repos match!|len:%i|qty:%i|>     " AC_RESETALL AC_YELLOW AC_REVERSED "%s" AC_RESETALL,
+                match_repos,
+                repos_match_qty,
+                es
                 );
-        int es_split_qty = splitqty(es, ">");
-        assert(es_split_qty > 1);
-        char **es_split = strsplit(es, ">");
-        char *author = es_split[1];
-        int author_split_qty = splitqty(author, "/");
-        assert(author_split_qty > 1);
-        char **author_split = strsplit(author, "/");
-        author = author_split[0];
-        char *repo = es_split[2];
+      int  es_split_qty = splitqty(es, ">");
+      assert(es_split_qty > 1);
+      char **es_split       = strsplit(es, ">");
+      char *author          = es_split[1];
+      int  author_split_qty = splitqty(author, "/");
+      assert(author_split_qty > 1);
+      char **author_split = strsplit(author, "/");
+      author = author_split[0];
+      char *repo = es_split[2];
 
-        log_debug( AC_RESETALL AC_REVERSED AC_BLUE "author:%s|repo:%s" AC_RESETALL ,author,repo);
+      log_debug(AC_RESETALL AC_REVERSED AC_BLUE "author:%s|repo:%s" AC_RESETALL, author, repo);
 
-        repo_t *Repo = malloc(sizeof(repo_t));
-        Repo->author = strdup(author);
-        Repo->name = strdup(repo);
-        Repo->url = get_repo_url(author,repo);
-        list_node_t *repo_item = list_node_new(Repo);
+      repo_t *Repo = malloc(sizeof(repo_t));
+      Repo->author = strdup(author);
+      Repo->name   = strdup(repo);
+      Repo->url    = get_repo_url(author, repo);
+      list_node_t *repo_item = list_node_new(Repo);
 
-        list_rpush(StarResult->repos, repo_item);
-      }else{
-         // log_debug("No match! - '%s'", line);
-      }
+      list_rpush(StarResult->repos, repo_item);
+    }else{
+      // log_debug("No match! - '%s'", line);
+    }
   }
 
-  return 0;
-}
+  return(0);
+} /* ParseStarResult */
 
-struct parsed_star_result *parse_star_html(char *name, char *url)                            {
+struct parsed_star_result *parse_star_html(char *name, char *url) {
   struct parsed_star_result *Result = malloc(sizeof(struct parsed_star_result));
 
-  Result->name = name;
-  Result->url  = url;
-  Result->html = get_star_html(Result->name, url);
+  Result->name  = name;
+  Result->url   = url;
+  Result->html  = get_star_html(Result->name, url);
   Result->repos = list_new();
   assert(ParseStarResult(Result) == 0);
 
@@ -376,11 +382,11 @@ struct parsed_star_result *parse_star_html(char *name, char *url)               
 }
 
 
-void print_parsed_star_result(struct parsed_star_result *StarResult)      {
+void print_parsed_star_result(struct parsed_star_result *StarResult) {
   log_debug("printing............");
 }
 
-struct parsed_stars_result *parse_stars_html(const char *html)                             {
+struct parsed_stars_result *parse_stars_html(const char *html) {
   log_set_level(DEFAULT_LOG_LEVEL);
   struct parsed_stars_result *Result = malloc(sizeof(struct parsed_stars_result));
 
@@ -459,7 +465,7 @@ list_t * wiki_registry(const char *url) {
  */
 
 
-void wiki_package_free(wiki_package_t *pkg)      {
+void wiki_package_free(wiki_package_t *pkg) {
   free(pkg->repo);
   free(pkg->href);
   free(pkg->description);
