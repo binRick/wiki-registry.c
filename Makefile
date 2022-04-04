@@ -3,8 +3,8 @@ CC     ?= cc
 SRC     = $(wildcard src/*.c)
 SRC    += $(wildcard deps/*/*.c)
 CFLAGS  = -std=gnu99 -Ideps -Isrc
-CFLAGS += -Wall -Wno-unused-function
-CFLAGS += -I ../.
+CFLAGS += -Wno-unused-function
+CFLAGS += -I include -I src -I . -I ../
 LDFLAGS = -lcurl -lm
 
 gh: gh.c $(SRC)
@@ -19,7 +19,9 @@ example: example.c $(SRC)
 clean:
 	rm -f example gh stars
 
-
 dev: example
+
+test:
+	@./example 
 
 .PHONY: clean

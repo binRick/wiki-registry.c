@@ -6,14 +6,15 @@
 #define C_REPO_TPL         "https://github.com/%s/%s"
 
 #include "list/list.h"
+#include <stdio.h>
+///#include "commander.h"
 
-typedef struct repo_t   repo_t;
-typedef struct          repo_t {
+typedef struct repo_t               repo_t;
+typedef struct                      repo_t {
   char *name;
   char *url;
   char *author;
 };
-
 typedef struct parsed_star_result   parsed_star_result;
 typedef struct                      parsed_star_result {
   char   *name;
@@ -24,6 +25,7 @@ typedef struct                      parsed_star_result {
   int    qty;
   char   *repo;
   char   *author;
+  int    pages;
 };
 
 
@@ -65,6 +67,9 @@ parse_star_html(char *, char *);
 
 struct parsed_stars_result *
 parse_stars_html(const char *);
+
+int
+get_star_repos_qty(const char *star_name);
 
 list_t *
 get_list_items();

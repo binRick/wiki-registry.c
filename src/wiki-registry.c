@@ -1,9 +1,12 @@
 #define SKIP_LIST_C          1
 #define STAR_URL_TEMPLATE    "https://github.com/stars/binRick/lists/%s"
+#define C_REPO_STAR_TPL      "https://github.com/stars/%s/lists/%s"
 /*************************************************/
 #include <curl/curl.h>
 #include <stdlib.h>
 #include <string.h>
+//#include "commander.c"
+//#include "wiki-commander.c"
 /*************************************************/
 #include "gumbo-get-element-by-id/get-element-by-id.h"
 #include "gumbo-get-elements-by-tag-name/get-elements-by-tag-name.h"
@@ -42,9 +45,24 @@
 /*************************************************/
 #define CACHE_ENABLED        false
 #define DEFAULT_LOG_LEVEL    LOG_DEBUG
-/**
- * Create a new wiki package.
- */
+/*************************************************/
+int repos_per_page = 30;
+/*************************************************/
+/*************************************************/
+struct parsed_star_result *parse_star_html(char *name, char *url) {
+  struct parsed_star_result *Result = malloc(sizeof(struct parsed_star_result));
+
+  Result->name = name;
+  Result->url  = url;
+  Result->html = get_star_html(Result->name, url);
+
+  Result->repos = list_new();
+  assert(ParseStarResult(Result) == 0);
+  assert(Result->qty > 0);
+
+  return(Result);
+}
+/*************************************************/
 
 
 static char *wiki_package_to_str(wiki_package_t *self){
@@ -90,12 +108,15 @@ static void add_package_href(wiki_package_t *self) {
 }
 
 
-/**
- * Parse the given wiki `li` into a package.
- */
+char *get_repo_star_url(char *author, char *star_name) {
+  char msg[1024];
+
+  sprintf(&msg, C_REPO_STAR_TPL, author, star_name);
+  return(strdup(msg));
+}
 
 
-char *get_repo_url(char *author, char *name)       {
+char *get_repo_url(char *author, char *name) {
   char msg[1024];
 
   sprintf(&msg, C_REPO_TPL, author, name);
@@ -314,11 +335,49 @@ char *get_star_url(char *list_name) {
 }
 
 
-int ParseStarResult(parsed_star_result *StarResult)     {
+bool AcquireStarredReposResponses(parsed_star_result *StarResult) {
+  return(true);
+}
+
+
+bool ParseStarredReposQty(parsed_star_result *StarResult) {
+  re_t repos_qty_regex = re_compile(" repositories</div>\\s*");
+  char *html = strdup(StarResult->html);
+  int  lines_qty = splitqty(html, "\n"), repos_qty_match_qty;
+  char **lines = strsplit(html, "\n");
+
+  assert(lines_qty > 0);
+  for (int i = 0; i < lines_qty; i++) {
+    char *line = lines[i];
+    if (strlen(line) < 1) {
+      continue;
+    }
+    int match_repos_qty = re_matchp(repos_qty_regex, line, &repos_qty_match_qty);
+    if (match_repos_qty != -1) {
+      int  sq1 = splitqty(line, ">"), sq2 = splitqty(line, "<"); assert(sq1 == 3 && sq2 == 3);
+      char **ss = strsplit(line, ">");
+      char *s   = ss[1];
+      ss                = strsplit(s, "<"); s = ss[0];
+      ss                = strsplit(s, " "); s = ss[1];
+      StarResult->qty   = str_to_int32(s);
+      StarResult->pages = (StarResult->qty / 30) + 1;
+      return(true);
+    }
+  }
+  return(false);
+}
+
+
+char **get_url_html_lines(const char *url) {
+}
+
+
+int ParseStarResult(parsed_star_result *StarResult) {
+  assert(ParseStarredReposQty(StarResult));
+  assert(AcquireStarredReposResponses(StarResult));
   char *html     = strdup(StarResult->html);
   int  lines_qty = splitqty(html, "\n");
 
-  log_debug("acquired %d lines", lines_qty);
   assert(lines_qty > 0);
   char **lines     = strsplit(html, "\n");
   re_t repos_regex = re_compile(" / </span>\\s*");
@@ -328,58 +387,46 @@ int ParseStarResult(parsed_star_result *StarResult)     {
     if (strlen(line) < 1) {
       continue;
     }
-    int match_length, repos_match_qty, repos_match_qty1;
+    int match_length, repos_match_qty;
     int match_repos = re_matchp(repos_regex, line, &repos_match_qty);
-    if (match_repos != -1) {
-      log_trace("match- '%s' > %d|%i", line, match_repos, repos_match_qty);
-      char *es = str_replace(line, " ", "");
-      int  sq1 = splitqty(es, ">");
-      int  sq2 = splitqty(es, "<");
-      assert(sq1 > 1);
-      assert(sq2 > 1);
-      log_trace("repos match!|len:%i|qty:%i|>     " AC_RESETALL AC_YELLOW AC_REVERSED "%s" AC_RESETALL,
-                match_repos,
-                repos_match_qty,
-                es
-                );
-      int  es_split_qty = splitqty(es, ">");
-      assert(es_split_qty > 1);
-      char **es_split       = strsplit(es, ">");
-      char *author          = es_split[1];
-      int  author_split_qty = splitqty(author, "/");
-      assert(author_split_qty > 1);
-      char **author_split = strsplit(author, "/");
-      author = author_split[0];
-      char *repo = es_split[2];
-
-      log_debug(AC_RESETALL AC_REVERSED AC_BLUE "author:%s|repo:%s" AC_RESETALL, author, repo);
-
-      repo_t *Repo = malloc(sizeof(repo_t));
-      Repo->author = strdup(author);
-      Repo->name   = strdup(repo);
-      Repo->url    = get_repo_url(author, repo);
-      list_node_t *repo_item = list_node_new(Repo);
-
-      list_rpush(StarResult->repos, repo_item);
-    }else{
-      // log_debug("No match! - '%s'", line);
+    if (match_repos == -1) {
+      continue;
     }
+    log_trace("match- '%s' > %d|%i", line, match_repos, repos_match_qty);
+    char *es = str_replace(line, " ", "");
+    int  sq1 = splitqty(es, ">"), sq2 = splitqty(es, "<");
+    assert(sq1 > 1 && sq2 > 1);
+    log_trace("repos match!|len:%i|qty:%i|>     " AC_RESETALL AC_YELLOW AC_REVERSED "%s" AC_RESETALL,
+              match_repos,
+              repos_match_qty,
+              es
+              );
+    int  es_split_qty = splitqty(es, ">");
+    assert(es_split_qty > 1);
+    char **es_split       = strsplit(es, ">");
+    char *author          = es_split[1];
+    int  author_split_qty = splitqty(author, "/");
+    assert(author_split_qty > 1);
+    char **author_split = strsplit(author, "/");
+    author = author_split[0];
+    char *repo = es_split[2];
+
+    log_trace(AC_RESETALL AC_REVERSED AC_BLUE "author:%s|repo:%s" AC_RESETALL, author, repo);
+
+    ////////////////////////////////////////////////////
+    //////    Allocate new Repo (repo_t)            ////
+    ////////////////////////////////////////////////////
+    repo_t *Repo = malloc(sizeof(repo_t));
+    Repo->author = strdup(author);
+    Repo->name   = strdup(repo);
+    Repo->url    = get_repo_url(author, repo);
+    list_node_t *repo_item = list_node_new(Repo);
+    list_rpush(StarResult->repos, repo_item);
+    ////////////////////////////////////////////////////
   }
 
   return(0);
 } /* ParseStarResult */
-
-struct parsed_star_result *parse_star_html(char *name, char *url) {
-  struct parsed_star_result *Result = malloc(sizeof(struct parsed_star_result));
-
-  Result->name  = name;
-  Result->url   = url;
-  Result->html  = get_star_html(Result->name, url);
-  Result->repos = list_new();
-  assert(ParseStarResult(Result) == 0);
-
-  return(Result);
-}
 
 
 void print_parsed_star_result(struct parsed_star_result *StarResult) {
