@@ -2,3 +2,4 @@ example
 deps/
 .response-cache.txt
 gh
+.*.html

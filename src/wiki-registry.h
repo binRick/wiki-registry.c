@@ -3,25 +3,29 @@
 #define SKIP_LIST_C        1
 #define C_STARS_TPL        "https://github.com/%s?language=c&tab=stars"
 #define C_REPOS_TPL        "https://github.com/%s?tab=repositories&q=&type=&language=c&sort="
+#define C_REPO_TPL        "https://github.com/%s/%s"
 
 #include "list/list.h"
+
+typedef struct repo_t repo_t;
+typedef struct repo_t {
+  char *name;
+  char *url;
+  char *author;
+};
 
 typedef struct parsed_star_result   parsed_star_result;
 typedef struct                      parsed_star_result {
   char *name;
   char *url;
   char *html;
+  list_t *html_lines;
+  list_t *repos;
   int  qty;
+  char *repo;
+  char *author;
 };
 
-/*
- * stp_print_begin(parsed_star_result, 4) {
- *  stp_print_field_string(name);
- *  stp_print_field_string(url);
- *  stp_print_field_string(html);
- *  stp_print_field_int(qty);
- *  stp_print_end();
- * }*/
 
 typedef struct parsed_stars_result {
   list_t *list_items;

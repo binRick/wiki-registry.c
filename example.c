@@ -7,6 +7,7 @@
 #include "../carrays/carrays.c"
 #include "../cstructs-json/json/json.h"
 #define SKIP_LIST_C 1
+#define MAX_STARS 25
 /******************************************************************/
 #include "wiki-registry.h"
 /******************************************************************/
@@ -27,10 +28,36 @@ void dev(){
     while ((node = list_iterator_next(it))) {            
         char *url = get_star_url(node->val);
         struct parsed_star_result *StarResult = parse_star_html(node->val, url);
-        fprintf(stderr, "#%d -> %s|url:%s|html len:%d|qty:%d|\n", ++i, node->val,url, strlen(StarResult->html),StarResult->qty);
+        fprintf(stderr, 
+                "Star #%d> %s\n"
+                "- URL:           %s\n"
+                "- # Repos:       %d\n"
+                "- HTML Length:   %s\n"
+                , ++i
+                , node->val
+                ,StarResult->url
+                ,StarResult->repos->len
+                , bytes_to_string(strlen(StarResult->html))
+                );
 
-        exit(0);
+        for(int i=0;i<StarResult->repos->len;i++){
+            repo_t *Repo = (repo_t*)(list_at(StarResult->repos,i)->val);
+            fprintf(stderr, 
+                    "  - Repo #%d\n"
+                    "               Name:     %s\n"
+                    "               Author:   %s\n"
+                    "               Url:      %s\n"
+                    , ++i
+                    , Repo->name
+                    , Repo->author
+                    , Repo->url
+                    );
+
+        }
+        if(i >= MAX_STARS)
+            exit(0);
     }
+    list_iterator_destroy(it);
 
 }
 

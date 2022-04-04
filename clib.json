@@ -1,0 +1,23 @@
+{
+    "name": "wiki-registry",
+    "version": "9e7234ffb480fe91cc932032b46ea45a1de2a194",
+    "repo": "binRick/wiki-registry",
+    "description": "C Base64 Encoder & Decoder",
+    "keywords": [
+        "c",
+        "module"
+    ],
+    "license": "MIT",
+    "makefile": "Makefile",
+    "install": "make install",
+    "files": [],
+    "dependencies": {
+        "clibs/ms": "0.0.4",
+        "littlstar/b64.c": "0.0.2",
+        "stephenmathieson/trim.c": "0.0.2",
+        "clibs/module": "0.1.1",
+        "4thel00z/env.h": "0.1.0",
+        "binRick/c_dbg": "f7ffb638cd774bafe100bfeb22c7dc0d06840ce5",
+        "kokke/tiny-regex-c": "0.1.0"
+    }
+}
