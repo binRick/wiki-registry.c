@@ -1,12 +1,17 @@
 #define SKIP_LIST_C          1
 #define STAR_URL_TEMPLATE    "https://github.com/stars/binRick/lists/%s"
 #define C_REPO_STAR_TPL      "https://github.com/stars/%s/lists/%s"
+#define USE_MEMCPY_INSTEAD_OF_STRCPY
 /*************************************************/
 #include <curl/curl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 //#include "commander.c"
 //#include "wiki-commander.c"
+/*************************************************/
+#include "../deps/b64/b64.h"
+#include "../deps/rhash_md5/md5.h"
 /*************************************************/
 #include "gumbo-get-element-by-id/get-element-by-id.h"
 #include "gumbo-get-elements-by-tag-name/get-elements-by-tag-name.h"
@@ -20,6 +25,7 @@
 #include "list/list.h"
 #include "substr/substr.h"
 /*************************************************/
+#include "../include/sha256.h"
 #include "case/case.h"
 #include "strdup/strdup.h"
 #include "trim/trim.h"
@@ -43,7 +49,7 @@
 #include "../../fs/time.c"
 #include "../../string/stringbuffer.c"
 /*************************************************/
-#define CACHE_ENABLED        false
+#define CACHE_ENABLED        true
 #define DEFAULT_LOG_LEVEL    LOG_DEBUG
 /*************************************************/
 int repos_per_page = 30;
@@ -63,6 +69,46 @@ struct parsed_star_result *parse_star_html(char *name, char *url) {
   return(Result);
 }
 /*************************************************/
+
+
+int do_b64(){
+  unsigned char *str = "brian the monkey and bradley the kinkajou are friends";
+  char          *enc = b64_encode(str, strlen(str));
+
+  printf("%s\n", enc); // YnJpYW4gdGhlIG1vbmtleSBhbmQgYnJhZGxleSB0aGUga2lua2Fqb3UgYXJlIGZyaWVuZHM=
+
+  char *dec = b64_decode(enc, strlen(enc));
+
+  printf("%s\n", dec); // brian the monkey and bradley the kinkajou are friends
+  free(enc);
+  free(dec);
+}
+
+
+int do_md5(){
+  char          *to_encode = "hello123";
+  md5_ctx       ctx;
+  unsigned char hash[16];
+
+  rhash_md5_init(&ctx);
+  rhash_md5_update(&ctx, (const unsigned char *)to_encode, strlen(to_encode));
+  rhash_md5_final(&ctx, hash);
+  log_debug("md5 of '%s'  is %d bytes long => %s", to_encode, strlen(hash), b64_encode(hash, strlen(hash)));
+
+  return(EXIT_SUCCESS);
+}
+
+
+char *encoded_md5(const char *to_encode){
+  const char    *s = strdup(to_encode);
+  md5_ctx       ctx;
+  unsigned char hash[16];
+
+  rhash_md5_init(&ctx);
+  rhash_md5_update(&ctx, (const unsigned char *)s, strlen(s));
+  rhash_md5_final(&ctx, hash);
+  return(b64_encode(hash, strlen(hash)));
+}
 
 
 static char *wiki_package_to_str(wiki_package_t *self){
@@ -274,6 +320,65 @@ char * get_star_html(char *name, char *url) {
   return(fsio_read_text_file(star_html_file));
 }
 
+#define RBS_HASH_KEY               "00c68498-100b-4533-be9c-ec737cc82a3b"
+#define HMAC_SHA256_DIGEST_SIZE    32
+
+
+void get_rbs_hash(char *b, char *dest){
+  char *rhash;
+
+  strcpy(dest, "");
+  sha256_t      chash;
+
+  unsigned char hbuf[32] = { 0 };
+
+  sha256_hash(hbuf, (unsigned char *)RBS_HASH_KEY, strlen(RBS_HASH_KEY));
+  sha256_init(&chash);
+  sha256_update(&chash, (unsigned char *)b, strlen((unsigned char *)b));
+  sha256_final(&chash, &dest);
+  return;
+}
+
+
+void do_sha256(){
+  char rbs_hash[1024];
+  char *rbs = "test123";
+
+  get_rbs_hash(rbs, &rbs_hash);
+  fprintf(stderr, "hash:%s\n", rbs_hash);
+  fprintf(stderr, "sha256.........\n");
+  // "hello"
+  unsigned char hello_hashed[] = {
+    0x2c, 0xf2, 0x4d, 0xba, 0x5f, 0xb0, 0xa3, 0x0e, 0x26, 0xe8, 0x3b, 0x2a,
+    0xc5, 0xb9, 0xe2, 0x9e, 0x1b, 0x16, 0x1e, 0x5c, 0x1f, 0xa7, 0x42, 0x5e,
+    0x73, 0x04, 0x33, 0x62, 0x93, 0x8b, 0x98, 0x24
+  };
+
+  // ""
+  unsigned char empty_hashed[] = {
+    0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8,
+    0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
+    0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
+  };
+
+
+  unsigned char buf[32] = { 0 };
+
+  sha256_hash(buf, (unsigned char *)"hello", 5);
+  printf("buf:");
+  printf(buf);
+  printf("\n");
+
+  sha256_t hash;
+
+  sha256_init(&hash);
+  sha256_update(&hash, (unsigned char *)"", 0);
+  sha256_update(&hash, (unsigned char *)"", 0);
+  sha256_final(&hash, buf);
+  fprintf(stderr, "buf:'%s'\n", buf);
+  fprintf(stderr, "hash:'%s'\n", hash);
+}
+
 
 char * get_stars_url(const char *url) {
   log_debug("Fetching url "AC_RESETALL AC_YELLOW AC_REVERSED "%s"AC_RESETALL, url);
@@ -416,7 +521,9 @@ int ParseStarResult(parsed_star_result *StarResult) {
     ////////////////////////////////////////////////////
     //////    Allocate new Repo (repo_t)            ////
     ////////////////////////////////////////////////////
-    repo_t *Repo = malloc(sizeof(repo_t));
+    repo_t *Repo       = malloc(sizeof(repo_t));
+    char   *pages_list = "xxxxxxxxxx,yyyyyyyyyy,zzzzzzzzzz";
+//    Repo->pages_list = strdup(pages_list);
     Repo->author = strdup(author);
     Repo->name   = strdup(repo);
     Repo->url    = get_repo_url(author, repo);
@@ -463,20 +570,25 @@ struct parsed_stars_result *parse_stars_html(const char *html) {
 
 
 list_t * wiki_registry(const char *url) {
-  log_debug("Fetching url "AC_RESETALL AC_YELLOW AC_REVERSED "%s"AC_RESETALL, url);
+  log_set_level(DEFAULT_LOG_LEVEL);
+  log_trace("Fetching url "AC_RESETALL AC_YELLOW AC_REVERSED "%s"AC_RESETALL, url);
   tq_start("");
   http_get_response_t *res;
   bool                dofree = false;
+  char                *html;
 
   fs_creation_time(RESPONSE_CACHE_FILE_PATH);
   if (CACHE_ENABLED && fsio_file_exists(RESPONSE_CACHE_FILE_PATH) && (fsio_file_size(RESPONSE_CACHE_FILE_PATH) > 0)) {
-    res->data = fsio_read_text_file(RESPONSE_CACHE_FILE_PATH);
-    log_info("Read %db from cache file %s", strlen(res->data));
+    log_trace("file %s", RESPONSE_CACHE_FILE_PATH);
+    html = strdup(fsio_read_text_file(RESPONSE_CACHE_FILE_PATH));
+    log_trace("file %db", strlen(html));
   }else{
     res = http_get(url);
     if (!res->ok) {
       return(NULL);
     }
+    html = strdup(res->data);
+    log_trace("Read %db from web", strlen(res->data));
     dofree = true;
     if (CACHE_RESPONSE) {
       if (!fsio_file_exists(RESPONSE_CACHE_FILE_PATH)) {
@@ -489,15 +601,16 @@ list_t * wiki_registry(const char *url) {
       }
     }
   }
+  log_trace("Working with %db file", strlen(html));
   char *dur = tq_stop("");
 
-  log_trace("got %s of data from url %s in %s", bytes_to_string(strlen(res->data)), url, dur);
+  log_trace("got %s of data from url %s in %s", bytes_to_string(strlen(html)), url, dur);
 
   tq_start("");
-  list_t *list = wiki_registry_parse(res->data);
+  list_t *list = wiki_registry_parse(html);
 
   dur = tq_stop("");
-  log_info("Parsed %s in %s", bytes_to_string(strlen(res->data)), dur);
+  log_debug("Parsed %s in %s :: %d items", bytes_to_string(strlen(html)), dur, list->len);
 
   if (dofree) {
     http_get_free(res);

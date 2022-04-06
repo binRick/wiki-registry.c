@@ -5,23 +5,27 @@ SRC    += $(wildcard deps/*/*.c)
 CFLAGS  = -std=gnu99 -Ideps -Isrc
 CFLAGS += -Wno-unused-function
 CFLAGS += -I include -I src -I . -I ../
-LDFLAGS = -lcurl -lm
+LDFLAGS = -lcurl -lm -lparson
+BIN = ./bin
 
-gh: gh.c $(SRC)
-	$(CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
+test1: tests/test1.c $(SRC)
+	@mkdir -p $(BIN)
+	$(CC) $^ -o $(BIN)/$@ $(CFLAGS) $(LDFLAGS)
 
-#stars: stars.c $(SRC)
-#	$(CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
-
-example: example.c $(SRC)
-	$(CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
+test-test1:
+	@$(BIN)/test1 stars
+	@$(BIN)/test1 fetch
+	@$(BIN)/test1 encode
 
 clean:
-	rm -f example gh stars
+	rm -rf $(BIN)
+	mkdir -p $(BIN)
 
-dev: example
+dev: test1 tests
 
-test:
-	@./example 
+tests: test-test1
+
+tidy:
+	@./tidy.sh
 
 .PHONY: clean

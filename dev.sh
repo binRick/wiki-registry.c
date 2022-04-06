@@ -1,3 +1,3 @@
 #!/bin/bash
 reset
-nodemon --delay .1 -e c,h,sh --signal SIGKILL -w ./ -x sh -- -c "clear;./test.sh ${@:-}||true"
+passh -L .nodemon reap nodemon --delay .1 -w Makefile -e c,h,sh,Makefile --signal SIGKILL -w ./ -x sh -- -c "clear;${@:-make dev}||true"

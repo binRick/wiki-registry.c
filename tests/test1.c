@@ -9,7 +9,7 @@
 //#include "src/wiki-commander.c"
 #include "include/commander.h"
 #define SKIP_LIST_C    1
-#define MAX_STARS      300
+#define MAX_STARS      5
 /******************************************************************/
 #include "wiki-registry.h"
 /******************************************************************/
@@ -19,11 +19,13 @@
 /******************************************************************/
 #include "src/args.c"
 /******************************************************************/
-args_t *eargs;
 list_t *pkgs;
 
 
-void dev(){
+/******************************************************************/
+
+
+void stars(){
   struct parsed_stars_result *Result = parse_stars_html(get_stars_url(STARS_URL));
 
   fprintf(stderr, "Acquired %d List Items\n", Result->list_items->len);
@@ -140,9 +142,25 @@ int main(const int argc, char **argv) {
   }
 
   if (argc > 1 && (strcmp(argv[1], "fetch") == 0)) {
+    fprintf(stderr, "fetching....\n");
     fetch_wiki();
-  }else if (argc > 1 && (strcmp(argv[1], "dev") == 0)) {
-    dev();
+  }else if (argc > 1 && (strcmp(argv[1], "stars") == 0)) {
+    fprintf(stderr, "stars....\n");
+    stars();
+  }else if (argc > 1 && (strcmp(argv[1], "b64") == 0)) {
+    fprintf(stderr, "b64....\n");
+    do_b64();
+  }else if (argc > 1 && (strcmp(argv[1], "encode") == 0)) {
+    fprintf(stderr, "encoded md5 of '%s': '%s'\n",
+            "abc123",
+            encoded_md5("abc123")
+            );
+  }else if (argc > 1 && (strcmp(argv[1], "md5") == 0)) {
+    fprintf(stderr, "md5....\n");
+    do_md5();
+  }else if (argc > 1 && (strcmp(argv[1], "sha256") == 0)) {
+    fprintf(stderr, "sha....\n");
+    do_sha256();
   }else if (argc > 2 && (strcmp(argv[1], "save") == 0)) {
     save_wiki();
   }else{
