@@ -3,7 +3,7 @@ CC     ?= cc
 SRC     = $(wildcard src/*.c)
 SRC    += $(wildcard deps/*/*.c)
 CFLAGS  = -std=gnu99 -Ideps -Isrc
-CFLAGS += -Wno-unused-function
+#CFLAGS += -Wno-unused-function
 CFLAGS += -I include -I src -I . -I ../
 LDFLAGS = -lcurl -lm -lparson
 BIN = ./bin
